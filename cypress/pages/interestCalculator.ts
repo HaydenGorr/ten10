@@ -7,7 +7,7 @@ export class InterestCalculator {
     principalSliderInput = "input.custom-range"
     selectedPrincipleValue = "#selectedValue"
     durationDailyButton = "#durationList > [data-value=\"Daily\"]"
-    durationMonthlyButton = "#durationList > [data-value=\"Daily\"]"
+    durationMonthlyButton = "#durationList > [data-value=\"Monthly\"]"
     durationYearlyButton = "#durationList > [data-value=\"Yearly\"]"
     mandatoryConsentCheckbox = ".form-check > input"
     calculateButton = "button[onclick=\"calculateInterest()\"]" // Bad selector - will fix
@@ -77,7 +77,11 @@ export class InterestCalculator {
     
 }
 
-
+/**
+ * Where a screen or input spawns in over the primary page
+ * it gets it's own object to improve compartmentalisation and
+ * readability.
+ */
 class InterestDropdownMenu {
     dropDownMenu = ".dropdown-menu"
     dropDownMenuItems = `.dropdown-item`

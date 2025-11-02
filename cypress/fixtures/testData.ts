@@ -1,5 +1,9 @@
 import { numericalTestData, durations } from "./fixture_interfaces"
 
+/**
+ * Data is kept in a js object to utilise typing
+ * because there is a lot of disparate data here
+ */
 export const numericalData: numericalTestData[] = [
 
     { duration: durations.Yearly, principal: 1000, rate: 10, expectedInterest: 100.00, expectedAmount: 1100.00 },
