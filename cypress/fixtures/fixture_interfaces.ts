@@ -1,8 +1,6 @@
 export interface access {
     base_url: string,
-    login_url: string,
-    email: string,
-    password: string
+    login_url: string
 }
 
 export interface URLs {

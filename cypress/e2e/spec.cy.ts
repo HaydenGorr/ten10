@@ -1,3 +1,4 @@
+import * as cypress from "cypress";
 import { access } from "../fixtures/fixture_interfaces";
 import { numericalData } from "../fixtures/testData";
 import { InterestCalculator } from "../pages/interestCalculator";
@@ -9,10 +10,14 @@ describe('meeting requirements', () => {
   const interestCalculator = new InterestCalculator();
 
   beforeEach(() => {
+    
     cy.fixture('access').then(((data: access) => {
       cy.visit(data.login_url)
-      loginPage.getEmailInput().type(data.email)
-      loginPage.getPasswordInput().type(data.password)
+      /**
+       * Please put the email and password into the .env before running the test
+       */
+      loginPage.getEmailInput().type(Cypress.env("email_login_for_test"))
+      loginPage.getPasswordInput().type(Cypress.env("password_login_for_test"))
       loginPage.getLoginButton().click()
     } ))
   })
