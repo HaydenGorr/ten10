@@ -210,11 +210,11 @@ function resetToLobby(room) {
   broadcast(room);
 }
 
-/* ---------- built-in computer opponent ---------- */
+/* ---------- built-in bot opponent ---------- */
 // The bot plays from its seat only: it sees the same colours a human would
 // (every revealed guess, coloured against the word it is trying to guess).
 
-const BOT_NAME = 'Claude Bot';
+const BOT_NAME = 'Bot';
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
 
 function addBot(room) {

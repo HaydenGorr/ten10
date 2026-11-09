@@ -207,13 +207,13 @@ async function pair(port, room, wordA, wordB) {
     console.log('ok  per-round timer: missed turn is skipped, clock restarts, an idle round just resets the clock');
   }
 
-  // --- computer opponent ---
+  // --- bot opponent ---
   {
     const res = await fetch(`http://localhost:${port}/api/rooms?bot=1`, { method: 'POST' });
     const { code } = await res.json();
     const H = await client(port, code, 'humanhuman-1', 'Hayden');
     const s0 = await H.until((s) => s.opp);
-    assert.strictEqual(s0.opp.name, 'Claude Bot');
+    assert.strictEqual(s0.opp.name, 'Bot');
     assert.strictEqual(s0.opp.online, true);
     H.send({ type: 'setWord', word: 'crane' });
     await H.until((s) => s.phase === 'playing'); // the bot picked its own word and the game started
@@ -236,7 +236,7 @@ async function pair(port, room, wordA, wordB) {
     H.send({ type: 'rematch' });
     const lobby = await H.until((s) => s.phase === 'lobby'); // the bot accepts rematches
     assert.strictEqual(lobby.scores.opp + lobby.scores.you + lobby.scores.draws, 1);
-    console.log(`ok  computer opponent: seated, picks a word, plays ${rounds} rounds from colours alone, accepts a rematch`);
+    console.log(`ok  bot opponent: seated, picks a word, plays ${rounds} rounds from colours alone, accepts a rematch`);
   }
 
   // --- reconnect keeps the seat ---
