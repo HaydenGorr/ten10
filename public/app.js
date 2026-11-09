@@ -276,10 +276,10 @@
       location.href = '/r/' + c;
     };
     codeIn.addEventListener('keydown', (e) => e.key === 'Enter' && go());
-    const start = async (btn) => {
+    const start = async (btn, bot) => {
       btn.disabled = true;
       try {
-        const r = await fetch('/api/rooms', { method: 'POST' });
+        const r = await fetch('/api/rooms' + (bot ? '?bot=1' : ''), { method: 'POST' });
         const { code } = await r.json();
         if (!code) throw 0;
         location.href = '/r/' + code;
@@ -287,6 +287,7 @@
     };
     const logoLetters = [['d', 'c'], ['u', 'a'], ['e', 'p'], ['l', 'c'], ['l', 'a'], ['e', 'p']];
     const startBtn = h('button', { class: 'btn primary block', style: 'height:54px;font-size:18px', onclick: () => start(startBtn) }, 'Start a game');
+    const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the computer');
     app.replaceChildren(
       h('div', { class: 'shell' },
         h('div', { class: 'home' },
@@ -294,6 +295,7 @@
           h('p', { class: 'tagline' }, 'Pick a secret word for your friend. Guess theirs. Lock in together, reveal together.'),
           h('div', { class: 'card' },
             startBtn,
+            botBtn,
             h('div', { class: 'label-sm', style: 'text-align:center' }, 'or join a friend'),
             h('div', { class: 'join', style: 'margin:0' }, codeIn, h('button', { class: 'btn', style: 'height:46px', onclick: go }, 'Join'))
           ),

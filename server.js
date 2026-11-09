@@ -4,7 +4,7 @@ const path = require('path');
 const express = require('express');
 const compression = require('compression');
 const { WebSocketServer } = require('ws');
-const { isValidWord, evaluate } = require('./lib/game');
+const { WORDS, ANSWERS, isValidWord, evaluate } = require('./lib/game');
 
 const PORT = process.env.PORT || 3000;
 const TEST = process.env.DUELLE_TEST === '1';
@@ -88,7 +88,7 @@ function viewFor(room, p) {
     },
     opp: o && {
       name: o.name,
-      online: !!o.ws,
+      online: !!o.ws || !!o.bot,
       hasWord: !!o.word,
       locked: !!o.pending, // only that they locked in, never what
       solved: o.solved,
@@ -118,6 +118,7 @@ function send(ws, obj) {
 function broadcast(room) {
   room.touched = Date.now();
   for (const p of room.players) if (p.ws) send(p.ws, viewFor(room, p));
+  if (room.players.some((p) => p.bot)) setImmediate(() => botAct(room));
 }
 
 /* ---------- game flow ---------- */
@@ -204,7 +205,68 @@ function resetToLobby(room) {
     p.solved = false;
   }
   room.roundStartsAt = null;
+  room.botKey = null;
   broadcast(room);
+}
+
+/* ---------- built-in computer opponent ---------- */
+// The bot plays from its seat only: it sees the same colours a human would
+// (every revealed guess, coloured against the word it is trying to guess).
+
+const BOT_NAME = 'Claude Bot';
+const rand = (a) => a[Math.floor(Math.random() * a.length)];
+
+function addBot(room) {
+  room.players.push({ id: 'bot-' + room.code, name: BOT_NAME, ws: null, bot: true, word: null, guesses: [], pending: null, solved: false, wins: 0 });
+  room.botKey = null;
+}
+
+function botPick(b, human) {
+  const target = human.word;
+  const seen = [...b.guesses, ...human.guesses].filter(Boolean).map((g) => [g, evaluate(g, target)]);
+  const mine = new Set(b.guesses);
+  const ok = (c) => !mine.has(c) && seen.every(([g, m]) => evaluate(g, c) === m);
+  let pool = ANSWERS.filter(ok);
+  if (!pool.length) pool = [...WORDS].filter(ok);
+  return b.guesses.length === 0 ? 'slate' : rand(pool);
+}
+
+function botAct(room) {
+  const b = room.players.find((p) => p.bot);
+  const human = b && other(room, b);
+  if (!b || !human) return;
+  const wait = (ms) => (TEST ? 30 : ms);
+
+  if (room.phase === 'lobby' && !b.word && room.botKey !== 'word') {
+    room.botKey = 'word';
+    setTimeout(() => {
+      room.botKey = null;
+      if (room.phase !== 'lobby' || b.word) return;
+      b.word = rand(ANSWERS);
+      broadcast(room);
+      maybeStart(room);
+    }, wait(1500 + Math.random() * 2000));
+  } else if (room.phase === 'playing' && !b.pending) {
+    const key = 'g' + b.guesses.length;
+    if (room.botKey === key) return;
+    room.botKey = key;
+    const t = room.settings.timer ? room.settings.timer * 600 : Infinity;
+    const delay = Math.min(wait((b.guesses.length ? 4000 : 6000) + Math.random() * 9000), t);
+    setTimeout(() => {
+      if (room.phase !== 'playing' || b.pending || b.guesses.length !== Number(key.slice(1))) return;
+      b.pending = botPick(b, human);
+      if (human.pending) resolveRound(room, false);
+      else broadcast(room);
+    }, delay);
+  } else if (room.phase === 'finished' && room.botKey !== 'rematch') {
+    room.botKey = 'rematch';
+    setTimeout(() => {
+      if (room.phase !== 'finished') return;
+      room.rematch.add(b.id);
+      if (room.players.every((x) => room.rematch.has(x.id))) resetToLobby(room);
+      else broadcast(room);
+    }, wait(7000));
+  }
 }
 
 /* ---------- message handling ---------- */
@@ -313,7 +375,9 @@ app.post('/api/rooms', (_req, res) => {
   if (rooms.size >= MAX_ROOMS) return res.status(503).json({ error: 'busy' });
   const code = newCode();
   if (!code) return res.status(503).json({ error: 'busy' });
-  rooms.set(code, makeRoom(code));
+  const room = makeRoom(code);
+  if (_req.query.bot === '1') addBot(room);
+  rooms.set(code, room);
   res.json({ code });
 });
 app.use(

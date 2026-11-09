@@ -25,3 +25,6 @@ Server is Node + Express + `ws` with in-memory rooms (the secret word never leav
 - If your clock runs out, a valid word on your board is locked in automatically; otherwise you skip that round. If neither player locks in, the game ends as a draw.
 - Rounds are unlimited. First to crack the other's word wins; cracking each other's word in the same round is a draw. You can also give up.
 - Words you lock in are remembered in a browser **history**; the saved **word list** is optional and only holds valid words.
+
+## Play the computer
+The home page has a "Play the computer" button. It opens a room with a built-in bot ("Claude Bot") already seated. The bot picks its own word, locks in a guess every round, accepts rematches, and plays only from what its seat can see: the colours of every revealed guess against the word it is trying to guess.

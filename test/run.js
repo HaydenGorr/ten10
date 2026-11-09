@@ -182,6 +182,38 @@ async function pair(port, room, wordA, wordB) {
     console.log('ok  per-round timer: missed turn is skipped, clock restarts, nobody playing ends the game');
   }
 
+  // --- computer opponent ---
+  {
+    const res = await fetch(`http://localhost:${port}/api/rooms?bot=1`, { method: 'POST' });
+    const { code } = await res.json();
+    const H = await client(port, code, 'humanhuman-1', 'Hayden');
+    const s0 = await H.until((s) => s.opp);
+    assert.strictEqual(s0.opp.name, 'Claude Bot');
+    assert.strictEqual(s0.opp.online, true);
+    H.send({ type: 'setWord', word: 'crane' });
+    await H.until((s) => s.phase === 'playing'); // the bot picked its own word and the game started
+    H.send({ type: 'guess', word: 'adieu' });
+    const r2 = await H.until((s) => s.round === 2); // bot locked in too, both revealed together
+    assert.strictEqual(r2.oppGuesses.length, 1);
+    assert.ok(r2.oppGuesses[0].w && r2.oppGuesses[0].w.length === 5);
+    // play until the game ends: the bot only uses colours, so it must converge on the human's word
+    let rounds = 1;
+    while (H.state.phase === 'playing' && rounds < 40) {
+      const target = H.state.round;
+      const w = ['about', 'ghost', 'house', 'plumb', 'fjord', 'quick', 'wryly', 'zebra', 'mango', 'lemon', 'piano', 'tiger'][rounds % 12];
+      if (H.state.myGuesses.some((g) => g.w === w)) { rounds++; continue; }
+      H.send({ type: 'guess', word: w });
+      await H.until((s) => s.round > target || s.phase !== 'playing');
+      rounds++;
+    }
+    assert.strictEqual(H.state.phase, 'finished', 'bot should crack the word eventually');
+    assert.notStrictEqual(H.state.result.winner, 'you');
+    H.send({ type: 'rematch' });
+    const lobby = await H.until((s) => s.phase === 'lobby'); // the bot accepts rematches
+    assert.strictEqual(lobby.scores.opp + lobby.scores.you + lobby.scores.draws, 1);
+    console.log(`ok  computer opponent: seated, picks a word, plays ${rounds} rounds from colours alone, accepts a rematch`);
+  }
+
   // --- reconnect keeps the seat ---
   {
     const { A: a, B: b } = await pair(port, 'RECO', 'crane', 'slate');
