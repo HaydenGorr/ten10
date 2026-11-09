@@ -156,7 +156,7 @@ button.chip:active { transform: scale(0.95); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 107, 129, 0.25); } }
 
 /* ---------- keyboard ---------- */
-.kb { position: sticky; bottom: 0; z-index: 5; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 7px; padding: 10px 0 2px; flex: none; background: linear-gradient(rgba(19,17,43,0), var(--bg) 14px); user-select: none; -webkit-user-select: none; }
+.kb { position: sticky; bottom: 0; z-index: 5; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 7px; padding: 10px 0 2px; flex: none; user-select: none; -webkit-user-select: none; }
 .kb .kr { display: flex; gap: 5px; justify-content: center; }
 .key { flex: 1 1 0; min-width: 0; height: clamp(44px, 6.6dvh, 58px); border-radius: 10px; background: var(--key); font-weight: 700; font-size: 17px; text-transform: uppercase; display: grid; place-items: center; transition: background 0.25s, transform 0.08s, opacity 0.25s; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25); }
 .key:active { transform: translateY(1px) scale(0.96); }
