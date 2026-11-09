@@ -89,19 +89,21 @@
     myHistory = [{ w, n: (prev ? prev.n : 0) + 1, t: Date.now() }, ...myHistory.filter((x) => x.w !== w)].slice(0, 100);
     store.set(K.history, myHistory);
   }
-  let WORDS = null;
+  let WORDS = null; // may be guessed
+  let TARGETS = null; // may be chosen as a secret word (no plurals)
   let ANSWERS = [];
 
   async function loadWords() {
     if (WORDS) return;
     for (let i = 0; i < 4; i++) {
       try {
-        const [a, b] = await Promise.all([fetch('/words.txt'), fetch('/answers.txt')]);
-        if (!a.ok || !b.ok) throw new Error('bad status');
+        const [a, b, c] = await Promise.all([fetch('/words.txt'), fetch('/answers.txt'), fetch('/targets.txt')]);
+        if (!a.ok || !b.ok || !c.ok) throw new Error('bad status');
         WORDS = new Set((await a.text()).split('\n').filter(Boolean));
         ANSWERS = (await b.text()).split('\n').filter(Boolean);
-        // saved list may only hold valid words
-        const clean = myWords.filter((w) => WORDS.has(w));
+        TARGETS = new Set((await c.text()).split('\n').filter(Boolean));
+        // the saved list holds words to use as secret words: valid and not plurals
+        const clean = myWords.filter((w) => TARGETS.has(w));
         if (clean.length !== myWords.length) { myWords = clean; store.set(K.words, myWords); }
         return;
       } catch { await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
@@ -183,20 +185,24 @@
       const add = () => {
         const toks = addIn.value.toLowerCase().split(/[^a-z]+/).filter(Boolean);
         if (!toks.length) return;
-        const bad = [];
+        const bad = [], plurals = [];
         let added = 0, dupes = 0;
         for (const t of toks) {
           if (t.length !== 5 || !WORDS.has(t)) bad.push(t);
+          else if (!TARGETS.has(t)) plurals.push(t);
           else if (myWords.includes(t)) dupes++;
           else { myWords.push(t); added++; }
         }
         store.set(K.words, myWords);
         renderList();
         onChange && onChange('words');
-        addIn.value = bad.join(' ');
-        if (bad.length) { msg.className = 'msg bad'; msg.textContent = `Not valid Wordle words: ${bad.join(', ')}`; }
+        addIn.value = [...bad, ...plurals].join(' ');
+        if (bad.length || plurals.length) {
+          msg.className = 'msg bad';
+          msg.textContent = [bad.length ? `Not valid Wordle words: ${bad.join(', ')}` : '', plurals.length ? `Plurals can't be secret words: ${plurals.join(', ')}` : ''].filter(Boolean).join(' · ');
+        }
         else { msg.className = 'msg good'; msg.textContent = added ? `Added ${added} word${added === 1 ? '' : 's'}${dupes ? ` (${dupes} already saved)` : ''}` : 'Already in your list'; }
-        if (added && bad.length) msg.textContent += ` · ${added} added`;
+        if (added && (bad.length || plurals.length)) msg.textContent += ` · ${added} added`;
       };
       addIn.addEventListener('keydown', (e) => e.key === 'Enter' && add());
       const histBox = h('div', { class: 'chips' });
@@ -220,7 +226,7 @@
         h('div', { class: 'label-sm', style: 'margin-top:0' }, 'Display name'),
         h('div', { class: 'field' }, nameIn),
         h('div', { class: 'label-sm' }, 'My word list ', count),
-        h('p', { style: 'color:var(--muted);font-size:13.5px;margin:0 0 10px' }, 'Optional. Words you want to reuse. Only real Wordle words are accepted, and it never leaves this browser.'),
+        h('p', { style: 'color:var(--muted);font-size:13.5px;margin:0 0 10px' }, 'Optional. Secret words you want to reuse. Only real Wordle words are accepted, no plurals, and it never leaves this browser.'),
         h('div', { class: 'join', style: 'margin:0' }, addIn, h('button', { class: 'btn primary small', style: 'height:46px', onclick: add }, 'Add')),
         msg,
         h('div', { style: 'margin-top:10px;max-height:24dvh;overflow-y:auto' }, listBox),
@@ -389,6 +395,7 @@
         else if (m.type === 'error') {
           ui.sending = 0;
           if (m.code === 'invalid_word' || m.code === 'invalid_guess') { toast('Not in word list'); shake(); }
+          else if (m.code === 'invalid_target') { toast('Plurals can’t be secret words'); shake(); }
           else if (m.code === 'repeat_guess') { toast('You already guessed that'); shake(); }
           else if (m.code === 'busy') toast('Server is busy, try again soon');
         }
@@ -480,6 +487,7 @@
         const w = ui[f];
         if (w.length < 5) { toast('Not enough letters'); return shake(); }
         if (!WORDS.has(w)) { toast('Not in word list'); return shake(); }
+        if (md === 'draft' && !TARGETS.has(w)) { toast('Plurals can’t be secret words'); return shake(); }
         if (md === 'guess') {
           if (S.myGuesses.some((g) => g.w === w)) { toast('You already guessed that'); return shake(); }
           lockGuess(w);
@@ -576,8 +584,10 @@
       const used = session.get(usedKey, []);
       const wordCard = h('div', { class: 'card' });
       if (!s.you.hasWord) {
-        const valid = ui.draft.length === 5 && WORDS.has(ui.draft);
+        const inGuessList = ui.draft.length === 5 && WORDS.has(ui.draft);
+        const valid = inGuessList && TARGETS.has(ui.draft);
         const bad = ui.draft.length === 5 && !valid;
+        const badMsg = inGuessList ? 'Plurals can’t be secret words (you can still guess them)' : 'Not in the word list';
         const pickRandom = (pool) => {
           const fresh = pool.filter((w) => !used.includes(w));
           const src = fresh.length ? fresh : pool;
@@ -593,7 +603,7 @@
           h('h2', {}, `Choose a word for ${oppName()}`),
           h('p', {}, 'They guess it round by round.'),
           h('div', { class: 'draft' }, [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
-          h('div', { class: 'hint ' + (bad ? 'bad' : valid ? 'good' : '') }, bad ? 'Not in the word list' : valid ? 'Looks good' : ''),
+          h('div', { class: 'hint ' + (bad ? 'bad' : valid ? 'good' : '') }, bad ? badMsg : valid ? 'Looks good' : ''),
           h('div', { class: 'row-btns' },
             myWords.length ? h('button', { class: 'btn small', onclick: () => pickRandom(myWords) }, '🎲 From my list') : null,
             h('button', { class: 'btn small', onclick: () => pickRandom(ANSWERS) }, '✨ Surprise me')
