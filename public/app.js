@@ -602,9 +602,9 @@
             [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
           h('div', { class: 'hint bad' }, bad ? (inGuessList ? 'No plurals' : 'Not in word list') : ''),
           h('button', { class: 'btn primary block', disabled: !valid, onclick: () => lockWord(ui.draft) }, 'Lock it in'),
-          myWords.length
-            ? h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))
-            : null
+          ...(myWords.length
+            ? [h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))]
+            : [])
         );
       } else {
         const inList = myWords.includes(s.you.word);
@@ -690,7 +690,7 @@
       if (playing) {
         frag.push(h('div', { class: 'strip' },
           s.endsAt
-            ? h('div', { class: 'timer', id: 'timer' }, h('div', { class: 'fill', id: 'tfill' }), h('span', { id: 'ttext' }, fmt(Math.min(s.endsAt - serverNow(), s.settings.timer * 1000))))
+            ? h('div', { class: 'timer', id: 'timer' }, h('div', { class: 'fill', id: 'tfill', style: `width:${Math.max(0, Math.min(100, (Math.min(s.endsAt - serverNow(), s.settings.timer * 1000) / (s.settings.timer * 1000)) * 100))}%` }), h('span', { id: 'ttext' }, fmt(Math.min(s.endsAt - serverNow(), s.settings.timer * 1000))))
             : h('div', { class: 'timer none' }, 'No time limit')));
         frag.push(statusLine());
       }
