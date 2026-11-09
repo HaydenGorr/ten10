@@ -42,6 +42,9 @@
     user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     back: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m17 9-6 6m0-6 6 6"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    dice: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><g fill="currentColor" stroke="none"><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="15.5" cy="8.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="8.5" cy="15.5" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/></g></svg>',
+    eye: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    eyeOff: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.6 3.6M6.2 6.2C3.6 7.9 2 12 2 12s3.6 7 10 7c1.9 0 3.5-.6 4.9-1.4M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>',
   };
   const icon = (n) => h('span', { html: ICONS[n], style: 'display:inline-flex' });
 
@@ -73,7 +76,7 @@
   };
 
   /* ================= local data ================= */
-  const K = { name: 'duelle.name', id: 'duelle.id', words: 'duelle.words', history: 'duelle.history' };
+  const K = { name: 'duelle.name', id: 'duelle.id', words: 'duelle.words', history: 'duelle.history', hideMine: 'duelle.hideMine' };
 
   let myId = store.get(K.id, null);
   if (!myId) {
@@ -109,10 +112,6 @@
     throw new Error('Could not load the word list');
   }
 
-  const FUN_A = ['Quick', 'Sneaky', 'Lucky', 'Zesty', 'Cosmic', 'Mighty', 'Sunny', 'Clever', 'Brave', 'Swift'];
-  const FUN_B = ['Fox', 'Otter', 'Panda', 'Falcon', 'Lynx', 'Koala', 'Heron', 'Gecko', 'Badger', 'Newt'];
-  const randomName = () => FUN_A[Math.floor(Math.random() * 10)] + ' ' + FUN_B[Math.floor(Math.random() * 10)];
-
   /* ================= modal ================= */
   let modalOpen = false;
   function openModal(content, { dismissable = true, onClose } = {}) {
@@ -129,7 +128,7 @@
       let done = false;
       openModal(
         (close) => {
-          const input = h('input', { class: 'input', maxlength: 16, value: myName || randomName(), placeholder: 'Your name', autocomplete: 'off', spellcheck: 'false' });
+          const input = h('input', { class: 'input', maxlength: 16, value: myName || '', placeholder: 'hayden, rachel', autocomplete: 'off', spellcheck: 'false' });
           const save = () => {
             const v = input.value.replace(/[<>]/g, '').trim().slice(0, 16);
             if (!v) return input.focus();
@@ -142,8 +141,7 @@
           input.addEventListener('keydown', (e) => e.key === 'Enter' && save());
           setTimeout(() => { input.focus(); input.select(); }, 50);
           return [
-            h('h2', {}, first ? 'Welcome! What should we call you?' : 'Your name'),
-            h('p', { style: 'color:var(--muted);font-size:14px;margin:0 0 14px' }, 'Shown to your opponent. Saved in this browser.'),
+            h('h2', {}, first ? 'What should we call you?' : 'Your name'),
             h('div', { class: 'join', style: 'margin:0' }, input, h('button', { class: 'btn primary', onclick: save }, first ? "Let's go" : 'Save')),
           ];
         },
@@ -168,66 +166,73 @@
       nameIn.addEventListener('keydown', (e) => e.key === 'Enter' && (saveName(), nameIn.blur()));
 
       const msg = h('div', { class: 'msg' });
-      const addIn = h('input', { class: 'input', placeholder: 'e.g. crane slate house', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', enterkeyhint: 'done' });
+      const addIn = h('input', { class: 'input word-in', maxlength: 5, placeholder: 'crane', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', enterkeyhint: 'done' });
+      const addBtn = h('button', { class: 'btn primary small', style: 'height:46px', disabled: true, onclick: () => add() }, 'Add');
       const listBox = h('div', { class: 'chips' });
       const count = h('span');
 
       const renderList = () => {
-        count.textContent = myWords.length ? `${myWords.length} word${myWords.length === 1 ? '' : 's'}` : '';
-        listBox.replaceChildren(
-          ...(myWords.length
-            ? myWords.map((w) => h('span', { class: 'chip' }, w, h('button', { class: 'x', 'aria-label': 'Remove ' + w, onclick: () => { myWords = myWords.filter((x) => x !== w); store.set(K.words, myWords); renderList(); onChange && onChange('words'); } }, '✕')))
-            : [h('div', { class: 'empty' }, 'No words yet. Add some now and pick them in a click next time.')])
-        );
+        count.textContent = myWords.length ? `${myWords.length}` : '';
+        listBox.replaceChildren(...myWords.map((w) => h('span', { class: 'chip' }, w, h('button', { class: 'x', 'aria-label': 'Remove ' + w, onclick: () => { myWords = myWords.filter((x) => x !== w); store.set(K.words, myWords); renderList(); onChange && onChange('words'); } }, '✕'))));
       };
-      const add = () => {
-        const toks = addIn.value.toLowerCase().split(/[^a-z]+/).filter(Boolean);
-        if (!toks.length) return;
-        const bad = [];
-        let added = 0, dupes = 0;
-        for (const t of toks) {
-          if (t.length !== 5 || !WORDS.has(t)) bad.push(t);
-          else if (myWords.includes(t)) dupes++;
-          else { myWords.push(t); added++; }
+      // validates the moment the fifth letter goes in
+      const check = () => {
+        const w = addIn.value;
+        let state = '', text = '';
+        if (w.length === 5 && WORDS) {
+          if (!WORDS.has(w)) { state = 'bad'; text = 'Not in word list'; }
+          else if (myWords.includes(w)) { state = 'bad'; text = 'Already in your list'; }
+          else state = 'good';
         }
+        addIn.classList.toggle('bad', state === 'bad');
+        addIn.classList.toggle('good', state === 'good');
+        msg.className = 'msg' + (state ? ' ' + state : '');
+        msg.textContent = text;
+        addBtn.disabled = state !== 'good';
+        return state === 'good';
+      };
+      addIn.addEventListener('input', () => {
+        const v = addIn.value.toLowerCase().replace(/[^a-z]/g, '').slice(0, 5);
+        if (v !== addIn.value) addIn.value = v;
+        check();
+      });
+      const add = () => {
+        if (!check()) return;
+        myWords.push(addIn.value);
         store.set(K.words, myWords);
+        addIn.value = '';
+        check();
         renderList();
+        renderHist();
         onChange && onChange('words');
-        addIn.value = bad.join(' ');
-        if (bad.length) { msg.className = 'msg bad'; msg.textContent = `Not valid Wordle words: ${bad.join(', ')}`; }
-        else { msg.className = 'msg good'; msg.textContent = added ? `Added ${added} word${added === 1 ? '' : 's'}${dupes ? ` (${dupes} already saved)` : ''}` : 'Already in your list'; }
-        if (added && bad.length) msg.textContent += ` · ${added} added`;
+        addIn.focus();
       };
       addIn.addEventListener('keydown', (e) => e.key === 'Enter' && add());
       const histBox = h('div', { class: 'chips' });
-      const histCount = h('span');
+      const histWrap = h('div');
       const renderHist = () => {
-        histCount.textContent = myHistory.length ? `${myHistory.length} word${myHistory.length === 1 ? '' : 's'}` : '';
-        histBox.replaceChildren(
-          ...(myHistory.length
-            ? myHistory.map((x) => {
-                const saved = myWords.includes(x.w);
-                return h('span', { class: 'chip' + (saved ? ' on' : ''), title: x.n > 1 ? `Used ${x.n} times` : 'Used once' }, x.w + (x.n > 1 ? ` ×${x.n}` : ''),
-                  saved ? null : h('button', { class: 'x', 'aria-label': 'Add ' + x.w + ' to my list', onclick: () => { myWords.push(x.w); store.set(K.words, myWords); renderList(); renderHist(); onChange && onChange('words'); } }, '＋'));
-              })
-            : [h('div', { class: 'empty' }, 'Words you lock in for an opponent are remembered here, even if they are not in your list.')])
-        );
+        histWrap.hidden = !myHistory.length;
+        histBox.replaceChildren(...myHistory.map((x) => {
+          const saved = myWords.includes(x.w);
+          return h('span', { class: 'chip' + (saved ? ' on' : '') }, x.w + (x.n > 1 ? ` ×${x.n}` : ''),
+            saved ? null : h('button', { class: 'x', 'aria-label': 'Add ' + x.w + ' to my list', onclick: () => { myWords.push(x.w); store.set(K.words, myWords); renderList(); renderHist(); check(); onChange && onChange('words'); } }, '＋'));
+        }));
       };
+      histWrap.append(
+        h('div', { class: 'label-sm' }, 'History',
+          h('button', { class: 'linkish', style: 'float:right;font-size:12px;text-transform:none;letter-spacing:0', onclick: () => { myHistory = []; store.set(K.history, myHistory); renderHist(); onChange && onChange('words'); } }, 'Clear')),
+        h('div', { style: 'max-height:22dvh;overflow-y:auto' }, histBox));
       renderList();
       renderHist();
       return [
         h('h2', {}, 'You', h('button', { class: 'iconbtn', onclick: close, 'aria-label': 'Close' }, icon('x'))),
-        h('div', { class: 'label-sm', style: 'margin-top:0' }, 'Display name'),
+        h('div', { class: 'label-sm', style: 'margin-top:0' }, 'Name'),
         h('div', { class: 'field' }, nameIn),
-        h('div', { class: 'label-sm' }, 'My word list ', count),
-        h('p', { style: 'color:var(--muted);font-size:13.5px;margin:0 0 10px' }, 'Optional. Words you want to reuse. Only real Wordle words are accepted, and it never leaves this browser.'),
-        h('div', { class: 'join', style: 'margin:0' }, addIn, h('button', { class: 'btn primary small', style: 'height:46px', onclick: add }, 'Add')),
+        h('div', { class: 'label-sm' }, 'My words ', count),
+        h('div', { class: 'join', style: 'margin:0' }, addIn, addBtn),
         msg,
         h('div', { style: 'margin-top:10px;max-height:24dvh;overflow-y:auto' }, listBox),
-        h('div', { class: 'label-sm' }, 'History ', histCount,
-          h('button', { class: 'linkish', style: 'float:right;font-size:12px;text-transform:none;letter-spacing:0', onclick: () => { myHistory = []; store.set(K.history, myHistory); renderHist(); onChange && onChange('words'); } }, 'Clear')),
-        h('p', { style: 'color:var(--muted);font-size:13.5px;margin:0 0 10px' }, 'Your word list is optional. Type any valid word before a game and it lands here instead. Tap ＋ to keep one.'),
-        h('div', { style: 'max-height:22dvh;overflow-y:auto' }, histBox),
+        histWrap,
       ];
     });
   }
@@ -266,7 +271,7 @@
 
   /* ================= home ================= */
   async function home() {
-    document.title = 'Duelle – a two-player word duel';
+    document.title = 'RachelHaydenWordle';
     if (!myName) await askName({ first: true });
     const nameEl = h('b', {}, myName);
     const codeIn = h('input', { class: 'input code-in', placeholder: 'CODE', maxlength: 8, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
@@ -285,30 +290,21 @@
         location.href = '/r/' + code;
       } catch { toast('Could not create a game, try again'); btn.disabled = false; }
     };
-    const logoLetters = [['d', 'c'], ['u', 'a'], ['e', 'p'], ['l', 'c'], ['l', 'a'], ['e', 'p']];
+    const logoRows = [['rachel', 'cpacap'], ['hayden', 'apcpca'], ['wordle', 'cacpac']];
     const startBtn = h('button', { class: 'btn primary block', style: 'height:54px;font-size:18px', onclick: () => start(startBtn) }, 'Start a game');
     const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the computer');
     app.replaceChildren(
       h('div', { class: 'shell' },
         h('div', { class: 'home' },
-          h('div', { class: 'logo' }, logoLetters.map(([l, m], i) => h('div', { class: 'tile ' + m, style: `--i:${i}` }, l))),
-          h('p', { class: 'tagline' }, 'Pick a secret word for your friend. Guess theirs. Lock in together, reveal together.'),
+          h('div', { class: 'logo', 'aria-label': 'RachelHaydenWordle' }, logoRows.map(([word, marks], r) =>
+            h('div', { class: 'logo-row' }, [...word].map((l, i) => h('div', { class: 'tile ' + marks[i], style: `--i:${r * 2 + i}` }, l))))),
           h('div', { class: 'card' },
             startBtn,
             botBtn,
             h('div', { class: 'label-sm', style: 'text-align:center' }, 'or join a friend'),
             h('div', { class: 'join', style: 'margin:0' }, codeIn, h('button', { class: 'btn', style: 'height:46px', onclick: go }, 'Join'))
           ),
-          h('div', { class: 'who-am-i' }, 'Playing as ', nameEl, h('button', { class: 'linkish', onclick: () => openProfile((w) => { nameEl.textContent = myName; }) }, 'name & word list')),
-          h('div', { class: 'card' },
-            h('ul', { class: 'steps' },
-              h('li', {}, 'Share your game link. Your opponent opens it and you are both in.'),
-              h('li', {}, 'Each of you secretly picks a word for the other. Type one, or use your saved list.'),
-              h('li', {}, 'Every round you both lock in a guess. They stay hidden until both are in, then flip together and the clock resets.'),
-              h('li', {}, 'You see both players’ guesses, all coloured for your word. Rounds go on until someone cracks it.'),
-              h('li', {}, 'Rematch in the same room as often as you like. No new link.')
-            )
-          )
+          h('div', { class: 'who-am-i' }, 'Playing as ', nameEl, h('button', { class: 'linkish', onclick: () => openProfile((w) => { nameEl.textContent = myName; }) }, 'edit'))
         )
       )
     );
@@ -317,7 +313,7 @@
 
   /* ================= room ================= */
   async function room(code) {
-    document.title = `Duelle · ${code}`;
+    document.title = `RachelHaydenWordle · ${code}`;
     if (!myName) await askName({ first: true });
     try { await loadWords(); } catch { app.replaceChildren(h('div', { class: 'shell' }, h('div', { class: 'stage' }, h('div', { class: 'card' }, h('h2', {}, 'Could not load the word list'), h('p', {}, 'Please check your connection and reload.'))))); return; }
 
@@ -341,10 +337,17 @@
     const connEl = h('div', { class: 'conn', hidden: true }, 'Reconnecting…');
     const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
     const keyEls = {};
+    const allKeys = {};
     const mkKey = (k, label, cls = '') => {
       const b = h('button', { class: 'key ' + cls, 'data-k': k, 'aria-label': k === 'back' ? 'Delete' : k }, label);
       if (/^[a-z]$/.test(k)) keyEls[k] = b;
+      allKeys[k] = b;
       return b;
+    };
+    // a physical key press darkens its on-screen key, which fades back over 200ms
+    const flashKey = (k) => {
+      const el = allKeys[k];
+      if (el && el.animate) el.animate([{ backgroundColor: '#0c0a1f', offset: 0 }], { duration: 200, easing: 'ease-out' });
     };
     const enterKey = mkKey('enter', 'Enter', 'wide');
     kbEl.append(
@@ -503,6 +506,7 @@
       else if (e.key === 'Enter') k = 'enter';
       if (!k || !mode()) return;
       e.preventDefault();
+      if (!e.repeat) flashKey(k);
       press(k);
     });
 
@@ -535,7 +539,7 @@
     /* ----- header ----- */
     function renderHeader() {
       const s = S;
-      const bits = [h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'D'))];
+      const bits = [h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'R'))];
       bits.push(h('div', { class: 'spacer' }));
       if (s && s.opp) {
         bits.push(h('div', { class: 'score', title: 'Score' },
@@ -563,10 +567,9 @@
         wrap.append(
           h('div', { class: 'card', style: 'padding:14px 16px' },
             h('h2', { style: 'font-size:17px' }, 'Invite your opponent'),
-            h('p', { style: 'font-size:13.5px' }, 'They join this room straight from the link. Same link for every rematch.'),
             h('div', { class: 'linkbox' }, h('span', {}, link.replace(/^https?:\/\//, '')),
               h('button', { class: 'btn small primary', onclick: doCopy }, icon('copy'), 'Copy'),
-              navigator.share ? h('button', { class: 'btn small', 'aria-label': 'Share', onclick: () => navigator.share({ title: 'Duelle', text: `${myName} challenges you to a word duel!`, url: link }).catch(() => {}) }, icon('share')) : null
+              navigator.share ? h('button', { class: 'btn small', 'aria-label': 'Share', onclick: () => navigator.share({ title: 'RachelHaydenWordle', text: `${myName} challenges you to a word duel!`, url: link }).catch(() => {}) }, icon('share')) : null
             )
           )
         );
@@ -578,43 +581,27 @@
       if (!s.you.hasWord) {
         const valid = ui.draft.length === 5 && WORDS.has(ui.draft);
         const bad = ui.draft.length === 5 && !valid;
-        const pickRandom = (pool) => {
-          const fresh = pool.filter((w) => !used.includes(w));
-          const src = fresh.length ? fresh : pool;
+        const surprise = () => {
+          const fresh = ANSWERS.filter((w) => !used.includes(w));
+          const src = fresh.length ? fresh : ANSWERS;
           ui.draft = src[Math.floor(Math.random() * src.length)];
           renderStage();
         };
-        // Optional sources: saved list and history. Typing a word is always fine.
-        const histWords = myHistory.map((x) => x.w);
-        const tab = ui.tab || (myWords.length ? 'list' : 'recent');
-        const pool = tab === 'list' ? myWords : histWords;
-        const hasSources = myWords.length || histWords.length;
         wordCard.append(
           h('h2', {}, `Choose a word for ${oppName()}`),
-          h('p', {}, 'They guess it round by round.'),
-          h('div', { class: 'draft' }, [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
-          h('div', { class: 'hint ' + (bad ? 'bad' : valid ? 'good' : '') }, bad ? 'Not in the word list' : valid ? 'Looks good' : ''),
-          h('div', { class: 'row-btns' },
-            myWords.length ? h('button', { class: 'btn small', onclick: () => pickRandom(myWords) }, '🎲 From my list') : null,
-            h('button', { class: 'btn small', onclick: () => pickRandom(ANSWERS) }, '✨ Surprise me')
-          ),
-          ...(hasSources
-            ? [
-                h('div', { class: 'tabs' },
-                  h('button', { class: 'tab' + (tab === 'list' ? ' on' : ''), onclick: () => { ui.tab = 'list'; renderStage(); } }, `My list${myWords.length ? ' · ' + myWords.length : ''}`),
-                  h('button', { class: 'tab' + (tab === 'recent' ? ' on' : ''), onclick: () => { ui.tab = 'recent'; renderStage(); } }, `History${histWords.length ? ' · ' + histWords.length : ''}`)),
-                h('div', { class: 'chips pick' }, pool.length
-                  ? pool.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w))
-                  : [h('span', { class: 'empty' }, tab === 'list' ? 'Your list is empty. Save words from the 👤 menu.' : 'Words you play will show up here.')]),
-              ]
-            : []),
-          h('button', { class: 'btn primary block', style: 'margin-top:14px', disabled: !valid, onclick: () => lockWord(ui.draft) }, 'Lock it in')
+          h('div', { class: 'draft' },
+            h('button', { class: 'dice', 'aria-label': 'Surprise me', title: 'Surprise me', onclick: surprise }, icon('dice')),
+            [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
+          h('div', { class: 'hint bad' }, bad ? 'Not in word list' : ''),
+          h('button', { class: 'btn primary block', disabled: !valid, onclick: () => lockWord(ui.draft) }, 'Lock it in'),
+          myWords.length
+            ? h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))
+            : null
         );
       } else {
         const inList = myWords.includes(s.you.word);
         wordCard.append(
           h('h2', {}, 'Your word is locked in 🔒'),
-          h('p', {}, `${s.opp ? s.opp.name : 'They'} will try to guess it. It's saved in your history.`),
           h('div', { class: 'draft' }, wordTiles(s.you.word, 'locked')),
           h('div', { class: 'row-btns' },
             h('button', { class: 'btn small', onclick: () => send({ type: 'clearWord' }) }, 'Change word'),
@@ -642,9 +629,7 @@
 
     function renderCountdown() {
       return h('div', { class: 'cd' },
-        h('small', {}, 'Both words locked in. Get ready…'),
-        h('div', { class: 'big', id: 'cd' }, Math.max(1, Math.ceil((S.startsAt - serverNow()) / 1000))),
-        h('small', {}, S.settings.timer ? `${S.settings.timer} seconds each round` : 'No time limit')
+        h('div', { class: 'big', id: 'cd' }, Math.max(1, Math.ceil((S.startsAt - serverNow()) / 1000)))
       );
     }
 
@@ -696,7 +681,6 @@
       const op = s.opp;
       if (playing) {
         frag.push(h('div', { class: 'strip' },
-          h('div', { class: 'rnd' }, 'Round ', h('b', {}, s.round)),
           s.endsAt
             ? h('div', { class: 'timer', id: 'timer' }, h('div', { class: 'fill', id: 'tfill' }), h('span', { id: 'ttext' }, fmt(Math.min(s.endsAt - serverNow(), s.settings.timer * 1000))))
             : h('div', { class: 'timer none' }, 'No time limit')));
@@ -710,53 +694,40 @@
           h('div', { class: 'heads' },
             h('div', { class: 'who my' }, h('span', { class: 'nm' }, 'You')),
             h('div', { class: 'who opp' }, h('span', { class: 'dot' + (op.online ? ' on' : '') }), h('span', { class: 'nm' }, op.name))),
-          list)
+          list,
+          myWordRow())
       );
-      if (playing) {
-        frag.push(h('div', { class: 'caption' }, h('b', {}, `${op.name}’s guesses`), ' are coloured for ', h('b', {}, 'your'), ' word, so every colour helps you.'));
-        frag.push(h('button', { class: 'linkish giveup', onclick: confirmGiveUp }, 'Give up'));
-      }
       if (s.phase === 'finished' && revealPending() === 0) frag.push(renderResult());
       return frag;
     }
 
-    async function confirmGiveUp() {
-      const ok = await new Promise((res) => {
-        openModal((close) => [
-          h('h2', {}, 'Give up?'),
-          h('p', { style: 'color:var(--muted);margin:0 0 16px;font-size:14.5px' }, `${S.opp.name} wins this game and you both see the words. You can rematch right after.`),
-          h('div', { class: 'row-btns' },
-            h('button', { class: 'btn', onclick: () => { res(false); close(); } }, 'Keep playing'),
-            h('button', { class: 'btn primary', onclick: () => { res(true); close(); } }, 'Give up')),
-        ], { onClose: () => res(false) });
-      });
-      if (ok) send({ type: 'forfeit' });
+    // the word I set for my opponent, under their board, with a privacy toggle
+    function myWordRow() {
+      const hidden = store.get(K.hideMine, false);
+      const w = S.you.word || '';
+      return h('div', { class: 'heads mine-row' },
+        h('div', { class: 'who my' }),
+        h('div', { class: 'mine-wrap' },
+          h('div', { class: 'mine' + (hidden ? ' hid' : '') }, [...Array(5)].map((_, i) => h('div', { class: 'tile' }, hidden ? '' : w[i] || ''))),
+          h('button', { class: 'eye', 'aria-label': hidden ? 'Show my word' : 'Hide my word', 'aria-pressed': hidden ? 'true' : 'false',
+            onclick: () => { store.set(K.hideMine, !hidden); renderStage(); } }, icon(hidden ? 'eyeOff' : 'eye'))));
     }
 
     function renderResult() {
       const s = S, r = s.result;
-      const n = r.rounds, rounds = `${n} ${n === 1 ? 'round' : 'rounds'}`;
-      let title, sub;
-      if (r.reason === 'both') { title = '🤝 Dead heat'; sub = `You both cracked it in round ${n}.`; }
-      else if (r.reason === 'forfeit') {
-        if (r.winner === 'you') { title = `🏳️ ${s.opp.name} gave up`; sub = 'That one is yours.'; }
-        else { title = 'You gave up'; sub = `${s.opp.name} takes this one.`; }
-      }
-      else if (r.reason === 'idle') { title = '⏰ Nobody locked in'; sub = `The game timed out after ${rounds}.`; }
-      else if (r.winner === 'you') { title = '🎉 You cracked it!'; sub = `Solved in ${rounds}.`; }
-      else { title = `${s.opp.name} wins`; sub = `They cracked your word in ${rounds}.`; }
+      const won = r.winner === 'you', lost = r.winner === 'opp';
+      const title = won ? 'You win!' : lost ? `${s.opp.name} wins!` : 'It’s a draw!';
       const asked = s.rematch.you, theyAsked = s.rematch.opp;
       const btn = h('button', { class: 'btn primary block', disabled: asked, onclick: () => send({ type: 'rematch' }) },
         asked ? `Waiting for ${s.opp.name}…` : theyAsked ? `Accept ${s.opp.name}’s rematch` : '↻ Play again');
+      const word = r.yourTarget || '';
       return h('div', { class: 'card result' },
         h('h2', {}, title),
-        h('p', {}, sub),
         h('div', { class: 'words' },
-          h('div', {}, 'Word you guessed', h('div', { class: 'w' }, wordTiles(r.yourTarget || '', 'c'))),
-          h('div', {}, `${s.opp.name} guessed`, h('div', { class: 'w' }, wordTiles(r.theirTarget || '', 'p')))),
-        btn,
-        theyAsked && !asked ? h('p', { style: 'margin-top:8px;font-size:13px' }, `${s.opp.name} wants a rematch.`) : null,
-        h('p', { style: 'margin-top:8px;font-size:13px' }, 'Same room, same link. Pick new words and go again.')
+          lost
+            ? h('div', {}, 'You had to guess', h('div', { class: 'w' }, wordTiles(word, 'a')))
+            : h('div', {}, h('div', { class: 'w' }, wordTiles(word, 'c')))),
+        btn
       );
     }
 
