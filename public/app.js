@@ -690,7 +690,7 @@
       if (playing) {
         frag.push(h('div', { class: 'strip' },
           s.endsAt
-            ? h('div', { class: 'timer', id: 'timer' }, h('div', { class: 'fill', id: 'tfill' }), h('span', { id: 'ttext' }, fmt(Math.min(s.endsAt - serverNow(), s.settings.timer * 1000))))
+            ? h('div', { class: 'timer', id: 'timer' }, h('div', { class: 'fill', id: 'tfill', style: `width:${Math.max(0, Math.min(100, (Math.min(s.endsAt - serverNow(), s.settings.timer * 1000) / (s.settings.timer * 1000)) * 100))}%` }), h('span', { id: 'ttext' }, fmt(Math.min(s.endsAt - serverNow(), s.settings.timer * 1000))))
             : h('div', { class: 'timer none' }, 'No time limit')));
         frag.push(statusLine());
       }
