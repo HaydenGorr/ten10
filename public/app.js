@@ -274,7 +274,7 @@
 
   /* ================= home ================= */
   async function home() {
-    document.title = 'RachelHaydenWordle';
+    document.title = 'Custard';
     if (!myName) await askName({ first: true });
     const codeIn = h('input', { class: 'input code-in', placeholder: 'CODE', maxlength: 8, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
     const go = () => {
@@ -292,17 +292,17 @@
         location.href = '/r/' + code;
       } catch { toast('Could not create a game, try again'); btn.disabled = false; }
     };
-    const logoRows = [['rachel', 'cpacap'], ['hayden', 'apcpca'], ['wordle', 'cacpac']];
+    const logoRows = [['custard', 'cpacapa']];
     const startBtn = h('button', { class: 'btn primary block', style: 'height:54px;font-size:18px', onclick: () => start(startBtn) }, 'Start a game');
     const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the bot');
     app.replaceChildren(
       h('div', { class: 'shell' },
         h('div', { class: 'top' },
-          h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'R')),
+          h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'C')),
           h('div', { class: 'spacer' }),
           h('button', { class: 'iconbtn', 'aria-label': 'Your name and word list', onclick: () => openProfile() }, icon('user'))),
         h('div', { class: 'home' },
-          h('div', { class: 'logo', 'aria-label': 'RachelHaydenWordle' }, logoRows.map(([word, marks], r) =>
+          h('div', { class: 'logo', 'aria-label': 'Custard' }, logoRows.map(([word, marks], r) =>
             h('div', { class: 'logo-row' }, [...word].map((l, i) => h('div', { class: 'tile ' + marks[i], style: `--i:${r * 2 + i}` }, l))))),
           h('div', { class: 'card' },
             startBtn,
@@ -318,7 +318,7 @@
 
   /* ================= room ================= */
   async function room(code) {
-    document.title = `RachelHaydenWordle · ${code}`;
+    document.title = `Custard · ${code}`;
     if (!myName) await askName({ first: true });
     try { await loadWords(); } catch { app.replaceChildren(h('div', { class: 'shell' }, h('div', { class: 'stage' }, h('div', { class: 'card' }, h('h2', {}, 'Could not load the word list'), h('p', {}, 'Please check your connection and reload.'))))); return; }
 
@@ -546,7 +546,7 @@
     /* ----- header ----- */
     function renderHeader() {
       const s = S;
-      const bits = [h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'R'))];
+      const bits = [h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'C'))];
       bits.push(h('div', { class: 'spacer' }));
       if (s && s.opp) {
         bits.push(h('div', { class: 'score', title: 'Score' },
@@ -576,7 +576,7 @@
             h('h2', { style: 'font-size:17px' }, 'Invite your opponent'),
             h('div', { class: 'linkbox' }, h('span', {}, link.replace(/^https?:\/\//, '')),
               h('button', { class: 'btn small primary', onclick: doCopy }, icon('copy'), 'Copy'),
-              navigator.share ? h('button', { class: 'btn small', 'aria-label': 'Share', onclick: () => navigator.share({ title: 'RachelHaydenWordle', text: `${myName} challenges you to a word duel!`, url: link }).catch(() => {}) }, icon('share')) : null
+              navigator.share ? h('button', { class: 'btn small', 'aria-label': 'Share', onclick: () => navigator.share({ title: 'Custard', text: `${myName} challenges you to a word duel!`, url: link }).catch(() => {}) }, icon('share')) : null
             )
           )
         );

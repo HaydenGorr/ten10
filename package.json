@@ -1,5 +1,5 @@
 {
-  "name": "rachelhaydenwordle",
+  "name": "custard",
   "version": "1.0.0",
   "description": "Two-player Wordle duel: set a word for your friend, guess theirs.",
   "main": "server.js",
