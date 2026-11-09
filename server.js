@@ -7,9 +7,11 @@ const { WebSocketServer } = require('ws');
 const { isValidWord, evaluate } = require('./lib/game');
 
 const PORT = process.env.PORT || 3000;
-const MAX_GUESSES = 6;
-const COUNTDOWN_MS = 3000;
-const TIMER_CHOICES = [0, 60, 90, 120, 180, 300]; // seconds, 0 = no limit
+const TEST = process.env.DUELLE_TEST === '1';
+const COUNTDOWN_MS = TEST ? 300 : 3000;
+const REVEAL_PAUSE_MS = TEST ? 100 : 2000; // lets the flip animation play before the next round's clock starts
+const GRACE_MS = 500; // a guess sent right at the buzzer still counts
+const TIMER_CHOICES = TEST ? [0, 1, 60, 90, 120, 180, 300] : [0, 60, 90, 120, 180, 300]; // seconds PER ROUND, 0 = no limit
 const DEFAULT_TIMER = 120;
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_ROOMS = 5000;
@@ -44,8 +46,9 @@ function makeRoom(code) {
     settings: { timer: DEFAULT_TIMER },
     draws: 0,
     phase: 'lobby', // lobby | countdown | playing | finished
-    startsAt: null,
-    endsAt: null,
+    startsAt: null, // countdown end
+    roundStartsAt: null, // when the current round's clock starts
+    endsAt: null, // when the current round's clock ends
     result: null,
     rematch: new Set(),
     timeouts: { start: null, end: null },
@@ -60,9 +63,9 @@ const other = (room, p) => room.players.find((x) => x !== p) || null;
 function viewFor(room, p) {
   const o = other(room, p);
   const target = o && o.word; // the word p is trying to guess
-  // Both boards are coloured against p's own target, so every guess
-  // (theirs and mine) reveals something useful to p.
-  const colour = (w) => (target ? evaluate(w, target) : 'aaaaa');
+  // Every revealed guess (mine and theirs) is coloured against p's own target,
+  // so each reveal tells p something useful.
+  const colour = (w) => (target && w ? evaluate(w, target) : 'aaaaa');
   const finished = room.phase === 'finished';
   const view = {
     type: 'state',
@@ -71,33 +74,36 @@ function viewFor(room, p) {
     settings: room.settings,
     serverNow: Date.now(),
     startsAt: room.startsAt,
+    roundStartsAt: room.roundStartsAt,
     endsAt: room.endsAt,
-    maxGuesses: MAX_GUESSES,
+    round: p.guesses.length + 1,
     you: {
       id: p.id,
       name: p.name,
       word: p.word, // you know the word you set for your opponent
       hasWord: !!p.word,
-      out: p.out,
+      locked: !!p.pending, // guess locked in this round, held until both have locked
+      pending: p.pending,
       solved: p.solved,
     },
     opp: o && {
       name: o.name,
       online: !!o.ws,
       hasWord: !!o.word,
-      out: o.out,
+      locked: !!o.pending, // only that they locked in, never what
       solved: o.solved,
     },
     scores: { you: p.wins, opp: o ? o.wins : 0, draws: room.draws },
-    myGuesses: p.guesses.map((w) => ({ w, m: colour(w) })),
-    oppGuesses: o ? o.guesses.map((w) => ({ w, m: colour(w), solved: w === p.word })) : [],
+    myGuesses: p.guesses.map((w) => ({ w, m: colour(w), solved: !!w && w === target })),
+    oppGuesses: o ? o.guesses.map((w) => ({ w, m: colour(w), solved: !!w && w === p.word })) : [],
     rematch: { you: room.rematch.has(p.id), opp: o ? room.rematch.has(o.id) : false },
     result: null,
   };
   if (finished && room.result) {
     view.result = {
       winner: room.result.winnerId === null ? 'draw' : room.result.winnerId === p.id ? 'you' : 'opp',
-      reason: room.result.reason,
+      reason: room.result.reason, // solved | both | forfeit | idle
+      rounds: p.guesses.length,
       yourTarget: target, // word you were guessing
       theirTarget: p.word, // word they were guessing
     };
@@ -134,9 +140,43 @@ function maybeStart(room) {
 function beginRound(room) {
   if (room.phase !== 'countdown') return;
   room.phase = 'playing';
+  startRoundClock(room, 0);
+  broadcast(room);
+}
+
+// (Re)start the per-round clock. `delay` gives the reveal animation time to play.
+function startRoundClock(room, delay) {
+  clearTimeout(room.timeouts.end);
+  room.timeouts.end = null;
+  room.roundStartsAt = Date.now() + delay;
   const t = room.settings.timer;
-  room.endsAt = t ? Date.now() + t * 1000 : null;
-  if (room.endsAt) room.timeouts.end = setTimeout(() => finish(room, null, 'time'), t * 1000);
+  room.endsAt = t ? room.roundStartsAt + t * 1000 : null;
+  if (room.endsAt) {
+    room.timeouts.end = setTimeout(() => resolveRound(room, true), room.endsAt - Date.now() + GRACE_MS);
+  }
+}
+
+// Reveal the round: both locked in, or the clock ran out.
+function resolveRound(room, byTime) {
+  if (room.phase !== 'playing') return;
+  const [a, b] = room.players;
+  if (!a || !b) return;
+  if (byTime && !a.pending && !b.pending) {
+    // nobody played this round: treat as abandoned
+    return finish(room, null, 'idle');
+  }
+  const aHit = !!a.pending && a.pending === b.word;
+  const bHit = !!b.pending && b.pending === a.word;
+  // a missed turn is recorded as null (shown as a skipped row)
+  a.guesses.push(a.pending);
+  b.guesses.push(b.pending);
+  a.pending = b.pending = null;
+  a.solved = aHit;
+  b.solved = bHit;
+  if (aHit && bHit) return finish(room, null, 'both');
+  if (aHit) return finish(room, a, 'solved');
+  if (bHit) return finish(room, b, 'solved');
+  startRoundClock(room, REVEAL_PAUSE_MS);
   broadcast(room);
 }
 
@@ -154,15 +194,16 @@ function finish(room, winner, reason) {
 function resetToLobby(room) {
   clearTimers(room);
   room.phase = 'lobby';
-  room.startsAt = room.endsAt = null;
+  room.startsAt = room.endsAt = room.roundStartsAt = null;
   room.result = null;
   room.rematch = new Set();
   for (const p of room.players) {
     p.word = null;
     p.guesses = [];
+    p.pending = null;
     p.solved = false;
-    p.out = false;
   }
+  room.roundStartsAt = null;
   broadcast(room);
 }
 
@@ -186,7 +227,7 @@ function handle(ws, ctx, msg) {
     let p = room.players.find((x) => x.id === msg.id);
     if (!p) {
       if (room.players.length >= 2) return send(ws, { type: 'full' });
-      p = { id: msg.id, name: cleanName(msg.name), ws: null, word: null, guesses: [], solved: false, out: false, wins: 0 };
+      p = { id: msg.id, name: cleanName(msg.name), ws: null, word: null, guesses: [], pending: null, solved: false, wins: 0 };
       room.players.push(p);
     } else if (msg.name) {
       p.name = cleanName(msg.name);
@@ -233,23 +274,23 @@ function handle(ws, ctx, msg) {
       return broadcast(room);
 
     case 'guess': {
-      if (room.phase !== 'playing' || p.solved || p.out) return;
+      // Locks in this round's guess. It stays hidden until both players have locked in.
+      if (room.phase !== 'playing' || p.pending) return;
       const o = other(room, p);
       if (!o || !o.word) return;
       const w = String(msg.word || '').toLowerCase();
       if (!isValidWord(w)) return send(ws, { type: 'error', code: 'invalid_guess' });
-      if (room.endsAt && Date.now() > room.endsAt + 300) return; // timer is authoritative
-      if (p.guesses.length >= MAX_GUESSES) return;
-      p.guesses.push(w);
-      if (w === o.word) {
-        p.solved = true;
-        return finish(room, p, 'solved');
-      }
-      if (p.guesses.length >= MAX_GUESSES) {
-        p.out = true;
-        if (o.out || o.solved) return finish(room, null, 'out');
-      }
+      if (p.guesses.includes(w)) return send(ws, { type: 'error', code: 'repeat_guess' });
+      if (room.endsAt && Date.now() > room.endsAt + GRACE_MS) return; // the clock is authoritative
+      p.pending = w;
+      if (o.pending) return resolveRound(room, false);
       return broadcast(room);
+    }
+
+    case 'forfeit': {
+      if (room.phase !== 'playing') return;
+      const o = other(room, p);
+      return finish(room, o, 'forfeit');
     }
 
     case 'rematch':
