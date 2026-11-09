@@ -298,7 +298,6 @@
       h('div', { class: 'shell' },
         h('div', { class: 'home' },
           h('div', { class: 'logo' }, logoLetters.map(([l, m], i) => h('div', { class: 'tile ' + m, style: `--i:${i}` }, l))),
-          h('p', { class: 'tagline' }, 'Pick a secret word for your friend. Guess theirs. Lock in together, reveal together.'),
           h('div', { class: 'card' },
             startBtn,
             botBtn,
