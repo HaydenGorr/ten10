@@ -602,9 +602,9 @@
             [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
           h('div', { class: 'hint bad' }, bad ? (inGuessList ? 'No plurals' : 'Not in word list') : ''),
           h('button', { class: 'btn primary block', disabled: !valid, onclick: () => lockWord(ui.draft) }, 'Lock it in'),
-          myWords.length
-            ? h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))
-            : null
+          ...(myWords.length
+            ? [h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))]
+            : [])
         );
       } else {
         const inList = myWords.includes(s.you.word);
