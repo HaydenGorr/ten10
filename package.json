@@ -1,19 +1,17 @@
 {
-  "name": "ten10",
+  "name": "duelle",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Two-player Wordle duel: set a word for your friend, guess theirs.",
+  "main": "server.js",
+  "private": true,
   "scripts": {
-    "cy:open": "cypress open"
+    "start": "node server.js",
+    "test": "node test/run.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "cypress": "^15.5.0",
-    "typescript": "^5.9.3"
-  },
+  "engines": { "node": ">=18" },
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "compression": "^1.7.4",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
   }
 }
