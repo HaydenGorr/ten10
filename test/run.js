@@ -2,7 +2,7 @@
 process.env.DUELLE_TEST = '1';
 const assert = require('assert');
 const WebSocket = require('ws');
-const { evaluate, isValidWord } = require('../lib/game');
+const { evaluate, isValidWord, isValidTarget, ANSWERS, WORDS, TARGETS } = require('../lib/game');
 const { server } = require('../server');
 
 // ---- scoring (duplicate letters are the classic bug) ----
@@ -18,6 +18,15 @@ for (const [g, t, want] of cases) assert.strictEqual(evaluate(g, t), want, `${g}
 assert.ok(isValidWord('crane') && isValidWord('CRANE'));
 assert.ok(!isValidWord('zzzzz') && !isValidWord('cran') && !isValidWord(null));
 console.log('ok  scoring + word list');
+
+// ---- guess list vs target list (like the real game) ----
+assert.ok(isValidWord('roots') && !isValidTarget('roots'), 'plurals can be guessed, not set');
+assert.ok(isValidWord('xylem') && isValidTarget('xylem'), 'non-answer singulars can still be set');
+assert.ok(isValidTarget('china') && isValidTarget('chaos') && isValidTarget('bliss') && isValidTarget('lotus'));
+assert.ok(ANSWERS.every((w) => TARGETS.has(w)), 'every answer is a legal target');
+assert.ok([...TARGETS].every((w) => WORDS.has(w)), 'every target is a legal guess');
+assert.ok([...TARGETS].filter((w) => w.endsWith('s') && !w.endsWith('ss') && !ANSWERS.includes(w)).length <= 20, 'only the small singular allowlist may end in s');
+console.log('ok  guess list vs target list: plurals guessable, never settable');
 
 // ---- two-player flow over real websockets ----
 function client(port, room, id, name) {
@@ -56,6 +65,25 @@ async function pair(port, room, wordA, wordB) {
 (async () => {
   await new Promise((r) => server.listen(0, r));
   const port = server.address().port;
+
+  // --- the server refuses a plural as a secret word, but accepts it as a guess ---
+  {
+    const A = await client(port, 'PLUR', 'plurAAAAAAAA', 'Alice');
+    const B = await client(port, 'PLUR', 'plurBBBBBBBB', 'Bob');
+    await A.until((s) => s.opp);
+    A.send({ type: 'setWord', word: 'roots' });
+    await sleep(80);
+    assert.deepStrictEqual(A.errors, ['invalid_target']);
+    assert.strictEqual(A.state.you.hasWord, false);
+    A.send({ type: 'setWord', word: 'xylem' });
+    B.send({ type: 'setWord', word: 'slate' });
+    await A.until((s) => s.phase === 'playing');
+    A.send({ type: 'guess', word: 'roots' });
+    B.send({ type: 'guess', word: 'trees' });
+    await A.until((s) => s.round === 2);
+    assert.strictEqual(A.state.myGuesses[0].w, 'roots');
+    console.log('ok  server: plural rejected as a secret word, accepted as a guess');
+  }
 
   // --- room full ---
   {

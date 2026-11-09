@@ -4,7 +4,7 @@ const path = require('path');
 const express = require('express');
 const compression = require('compression');
 const { WebSocketServer } = require('ws');
-const { WORDS, ANSWERS, isValidWord, evaluate } = require('./lib/game');
+const { WORDS, ANSWERS, isValidWord, isValidTarget, evaluate } = require('./lib/game');
 
 const PORT = process.env.PORT || 3000;
 const TEST = process.env.DUELLE_TEST === '1';
@@ -228,7 +228,7 @@ function botPick(b, human) {
   const mine = new Set(b.guesses);
   const ok = (c) => !mine.has(c) && seen.every(([g, m]) => evaluate(g, c) === m);
   let pool = ANSWERS.filter(ok);
-  if (!pool.length) pool = [...WORDS].filter(ok);
+  if (!pool.length) pool = [...WORDS].filter((c) => isValidTarget(c) && ok(c));
   return b.guesses.length === 0 ? 'slate' : rand(pool);
 }
 
@@ -326,6 +326,7 @@ function handle(ws, ctx, msg) {
       if (room.phase !== 'lobby') return;
       const w = String(msg.word || '').toLowerCase();
       if (!isValidWord(w)) return send(ws, { type: 'error', code: 'invalid_word' });
+      if (!isValidTarget(w)) return send(ws, { type: 'error', code: 'invalid_target' }); // plurals can be guessed but never set
       p.word = w;
       broadcast(room);
       return maybeStart(room);

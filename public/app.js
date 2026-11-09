@@ -92,19 +92,21 @@
     myHistory = [{ w, n: (prev ? prev.n : 0) + 1, t: Date.now() }, ...myHistory.filter((x) => x.w !== w)].slice(0, 100);
     store.set(K.history, myHistory);
   }
-  let WORDS = null;
+  let WORDS = null; // may be guessed
+  let TARGETS = null; // may be chosen as a secret word (no plurals)
   let ANSWERS = [];
 
   async function loadWords() {
     if (WORDS) return;
     for (let i = 0; i < 4; i++) {
       try {
-        const [a, b] = await Promise.all([fetch('/words.txt'), fetch('/answers.txt')]);
-        if (!a.ok || !b.ok) throw new Error('bad status');
+        const [a, b, c] = await Promise.all([fetch('/words.txt'), fetch('/answers.txt'), fetch('/targets.txt')]);
+        if (!a.ok || !b.ok || !c.ok) throw new Error('bad status');
         WORDS = new Set((await a.text()).split('\n').filter(Boolean));
         ANSWERS = (await b.text()).split('\n').filter(Boolean);
-        // saved list may only hold valid words
-        const clean = myWords.filter((w) => WORDS.has(w));
+        TARGETS = new Set((await c.text()).split('\n').filter(Boolean));
+        // the saved list holds words to use as secret words: valid and not plurals
+        const clean = myWords.filter((w) => TARGETS.has(w));
         if (clean.length !== myWords.length) { myWords = clean; store.set(K.words, myWords); }
         return;
       } catch { await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
@@ -181,6 +183,7 @@
         let state = '', text = '';
         if (w.length === 5 && WORDS) {
           if (!WORDS.has(w)) { state = 'bad'; text = 'Not in word list'; }
+          else if (TARGETS && !TARGETS.has(w)) { state = 'bad'; text = 'No plurals'; }
           else if (myWords.includes(w)) { state = 'bad'; text = 'Already in your list'; }
           else state = 'good';
         }
@@ -394,6 +397,7 @@
         else if (m.type === 'error') {
           ui.sending = 0;
           if (m.code === 'invalid_word' || m.code === 'invalid_guess') { toast('Not in word list'); shake(); }
+          else if (m.code === 'invalid_target') { toast('Plurals can’t be secret words'); shake(); }
           else if (m.code === 'repeat_guess') { toast('You already guessed that'); shake(); }
           else if (m.code === 'busy') toast('Server is busy, try again soon');
         }
@@ -485,6 +489,7 @@
         const w = ui[f];
         if (w.length < 5) { toast('Not enough letters'); return shake(); }
         if (!WORDS.has(w)) { toast('Not in word list'); return shake(); }
+        if (md === 'draft' && !TARGETS.has(w)) { toast('Plurals can’t be secret words'); return shake(); }
         if (md === 'guess') {
           if (S.myGuesses.some((g) => g.w === w)) { toast('You already guessed that'); return shake(); }
           lockGuess(w);
@@ -581,7 +586,8 @@
       const used = session.get(usedKey, []);
       const wordCard = h('div', { class: 'card' });
       if (!s.you.hasWord) {
-        const valid = ui.draft.length === 5 && WORDS.has(ui.draft);
+        const inGuessList = ui.draft.length === 5 && WORDS.has(ui.draft);
+        const valid = inGuessList && TARGETS.has(ui.draft);
         const bad = ui.draft.length === 5 && !valid;
         const surprise = () => {
           const fresh = ANSWERS.filter((w) => !used.includes(w));
@@ -594,7 +600,7 @@
           h('div', { class: 'draft' },
             h('button', { class: 'dice', 'aria-label': 'Surprise me', title: 'Surprise me', onclick: surprise }, icon('dice')),
             [...Array(5)].map((_, i) => h('div', { class: 'tile ' + (ui.draft[i] ? 'filled ' : '') + (ui.pop === i ? 'pop' : '') }, ui.draft[i] || ''))),
-          h('div', { class: 'hint bad' }, bad ? 'Not in word list' : ''),
+          h('div', { class: 'hint bad' }, bad ? (inGuessList ? 'No plurals' : 'Not in word list') : ''),
           h('button', { class: 'btn primary block', disabled: !valid, onclick: () => lockWord(ui.draft) }, 'Lock it in'),
           myWords.length
             ? h('div', { class: 'chips pick' }, myWords.map((w) => h('button', { class: 'chip' + (used.includes(w) ? ' used' : '') + (ui.draft === w ? ' on' : ''), onclick: () => { ui.draft = w; renderStage(); } }, w)))
