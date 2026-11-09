@@ -102,7 +102,7 @@ function viewFor(room, p) {
   if (finished && room.result) {
     view.result = {
       winner: room.result.winnerId === null ? 'draw' : room.result.winnerId === p.id ? 'you' : 'opp',
-      reason: room.result.reason, // solved | both | forfeit | idle
+      reason: room.result.reason, // solved | both
       rounds: p.guesses.length,
       yourTarget: target, // word you were guessing
       theirTarget: p.word, // word they were guessing
@@ -163,8 +163,9 @@ function resolveRound(room, byTime) {
   const [a, b] = room.players;
   if (!a || !b) return;
   if (byTime && !a.pending && !b.pending) {
-    // nobody played this round: treat as abandoned
-    return finish(room, null, 'idle');
+    // nobody locked in: nothing to reveal, the clock just starts again
+    startRoundClock(room, 0);
+    return broadcast(room);
   }
   const aHit = !!a.pending && a.pending === b.word;
   const bHit = !!b.pending && b.pending === a.word;
@@ -350,12 +351,6 @@ function handle(ws, ctx, msg) {
       return broadcast(room);
     }
 
-    case 'forfeit': {
-      if (room.phase !== 'playing') return;
-      const o = other(room, p);
-      return finish(room, o, 'forfeit');
-    }
-
     case 'rematch':
       if (room.phase !== 'finished') return;
       room.rematch.add(p.id);
@@ -446,7 +441,7 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 if (require.main === module) {
-  server.listen(PORT, () => console.log(`Duelle listening on :${PORT}`));
+  server.listen(PORT, () => console.log(`RachelHaydenWordle listening on :${PORT}`));
 }
 
 module.exports = { server, rooms };

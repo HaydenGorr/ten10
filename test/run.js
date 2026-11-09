@@ -174,17 +174,7 @@ async function pair(port, room, wordA, wordB) {
     console.log('ok  both cracking it in the same round is a draw');
   }
 
-  // --- forfeit ---
-  {
-    const { A: a, B: b } = await pair(port, 'GIVE', 'crane', 'slate');
-    b.send({ type: 'forfeit' });
-    const f = await a.until((s) => s.phase === 'finished');
-    assert.strictEqual(f.result.winner, 'you');
-    assert.strictEqual(f.result.reason, 'forfeit');
-    console.log('ok  giving up hands the win to the opponent');
-  }
-
-  // --- timer is per round: a missed turn is skipped, the clock restarts, nobody playing ends it ---
+  // --- timer is per round: a missed turn is skipped, the clock restarts, an idle round resets it ---
   {
     const { A: a, B: b } = await pair(port, 'TIME', 'crane', 'slate');
     a.send({ type: 'setTimer', timer: 1 }); // ignored: not in the lobby any more
@@ -204,10 +194,17 @@ async function pair(port, room, wordA, wordB) {
     const r2 = await A.until((s) => s.round === 2); // clock expires -> reveal with Bob skipped
     assert.strictEqual(r2.myGuesses[0].w, 'slang');
     assert.strictEqual(r2.oppGuesses[0].w, null, "Bob's missed turn is a skipped row");
-    const idle = await A.until((s) => s.phase === 'finished'); // round 2: nobody plays
-    assert.strictEqual(idle.result.reason, 'idle');
-    assert.strictEqual(idle.result.winner, 'draw');
-    console.log('ok  per-round timer: missed turn is skipped, clock restarts, nobody playing ends the game');
+    // round 2: nobody plays -> the clock just restarts, the game carries on
+    const before = r2.endsAt;
+    const again = await A.until((s) => s.endsAt > before);
+    assert.strictEqual(again.phase, 'playing');
+    assert.strictEqual(again.round, 2, 'no row is added when nobody locked in');
+    assert.strictEqual(again.myGuesses.length, 1);
+    A.send({ type: 'guess', word: 'slate' });
+    B.send({ type: 'guess', word: 'zebra' });
+    const won = await A.until((s) => s.phase === 'finished');
+    assert.strictEqual(won.result.winner, 'you');
+    console.log('ok  per-round timer: missed turn is skipped, clock restarts, an idle round just resets the clock');
   }
 
   // --- computer opponent ---
