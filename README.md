@@ -1,0 +1,20 @@
+# Duelle
+
+A two-player Wordle duel. Each player secretly picks a word for the other, then you race to crack it.
+
+- **One link, endless rematches.** Share the room link once; "Play again" resets the round in the same room and keeps the score.
+- **Shared guesses, personal colours.** You see both players' guesses, and every letter is coloured against *your* target word, so your opponent's guesses reveal clues to you (and the on-screen keyboard uses them too).
+- **Word list.** Valid words come from the public Wordle lists (`public/words.txt`, 14,855 words; `public/answers.txt` is the original 2,309 answers used for "Surprise me"). Build a personal list of words to use later; only valid words are accepted. Your name and list live in browser storage.
+- **Timer** defaults to 120 seconds (60 / 90 / 120 / 180 / 300 / none), set in the lobby.
+
+## Rules
+Both players have 6 guesses. First to crack the other's word wins the round. If the timer runs out, or both run out of guesses, it's a draw.
+
+## Run
+```
+npm install
+npm start      # http://localhost:3000
+npm test
+```
+
+Server is Node + Express + `ws` with in-memory rooms (the secret word never leaves the server until the round ends). Deployed on Railway; the start command and health check are in `railway.json`.
