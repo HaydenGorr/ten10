@@ -1,4 +1,4 @@
-# RachelHaydenWordle
+# Custard
 
 A two-player Wordle duel. Each player secretly picks a word for the other, then you race to crack it.
 

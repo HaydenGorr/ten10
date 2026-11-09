@@ -441,7 +441,7 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 if (require.main === module) {
-  server.listen(PORT, () => console.log(`RachelHaydenWordle listening on :${PORT}`));
+  server.listen(PORT, () => console.log(`Custard listening on :${PORT}`));
 }
 
 module.exports = { server, rooms };
