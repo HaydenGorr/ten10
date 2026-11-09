@@ -27,5 +27,5 @@ Server is Node + Express + `ws` with in-memory rooms (the secret word never leav
 - Words you lock in are remembered in a browser **history**; the saved **word list** is optional and only holds valid words. Saved words show as a scrollable row under "Lock it in"; the dice button picks a random word.
 - The word you set for your opponent sits under their board. The eye button hides it so you can show your screen without giving it away.
 
-## Play the computer
-The home page has a "Play the computer" button. It opens a room with a built-in bot ("Claude Bot") already seated. The bot picks its own word, locks in a guess every round, accepts rematches, and plays only from what its seat can see: the colours of every revealed guess against the word it is trying to guess.
+## Play the bot
+The home page has a "Play the bot" button. It opens a room with a built-in bot ("Bot") already seated. The bot picks its own word, locks in a guess every round, accepts rematches, and plays only from what its seat can see: the colours of every revealed guess against the word it is trying to guess.

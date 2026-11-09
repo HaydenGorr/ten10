@@ -294,7 +294,7 @@
     };
     const logoRows = [['rachel', 'cpacap'], ['hayden', 'apcpca'], ['wordle', 'cacpac']];
     const startBtn = h('button', { class: 'btn primary block', style: 'height:54px;font-size:18px', onclick: () => start(startBtn) }, 'Start a game');
-    const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the computer');
+    const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the bot');
     app.replaceChildren(
       h('div', { class: 'shell' },
         h('div', { class: 'top' },
