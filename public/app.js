@@ -273,7 +273,6 @@
   async function home() {
     document.title = 'RachelHaydenWordle';
     if (!myName) await askName({ first: true });
-    const nameEl = h('b', {}, myName);
     const codeIn = h('input', { class: 'input code-in', placeholder: 'CODE', maxlength: 8, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
     const go = () => {
       const c = codeIn.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -295,6 +294,10 @@
     const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the computer');
     app.replaceChildren(
       h('div', { class: 'shell' },
+        h('div', { class: 'top' },
+          h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'R')),
+          h('div', { class: 'spacer' }),
+          h('button', { class: 'iconbtn', 'aria-label': 'Your name and word list', onclick: () => openProfile() }, icon('user'))),
         h('div', { class: 'home' },
           h('div', { class: 'logo', 'aria-label': 'RachelHaydenWordle' }, logoRows.map(([word, marks], r) =>
             h('div', { class: 'logo-row' }, [...word].map((l, i) => h('div', { class: 'tile ' + marks[i], style: `--i:${r * 2 + i}` }, l))))),
@@ -303,8 +306,7 @@
             botBtn,
             h('div', { class: 'label-sm', style: 'text-align:center' }, 'or join a friend'),
             h('div', { class: 'join', style: 'margin:0' }, codeIn, h('button', { class: 'btn', style: 'height:46px', onclick: go }, 'Join'))
-          ),
-          h('div', { class: 'who-am-i' }, 'Playing as ', nameEl, h('button', { class: 'linkish', onclick: () => openProfile((w) => { nameEl.textContent = myName; }) }, 'edit'))
+          )
         )
       )
     );

@@ -209,7 +209,6 @@ button.chip:active { transform: scale(0.95); }
 .input.bad { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255, 107, 129, 0.22); }
 .input.good { border-color: var(--green); box-shadow: 0 0 0 3px rgba(47, 191, 113, 0.22); }
 .input.code-in { text-transform: uppercase; letter-spacing: 0.2em; text-align: center; }
-.who-am-i { display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
 .linkish { color: #c9b8ff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; background: none; padding: 0; }
 
 /* ---------- modal ---------- */
