@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#13112b">
+  <title>Battleships</title>
+  <meta name="description" content="Two-player Battleships. Share a link to play.">
+  <link rel="icon" href="/battleships/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/battleships/style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/" aria-label="All games"><span class="mark" aria-hidden="true">‹</span>Games</a>
+    <span class="title">Battleships</span>
+    <div class="topright">
+      <div id="conn" class="conn" hidden>Reconnecting…</div>
+      <button id="me" class="iconbtn" type="button" aria-label="Your name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="myname"></span></button>
+    </div>
+  </header>
+  <main id="app"></main>
+  <div id="modal"></div>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/battleships/app.js"></script>
+</body>
+</html>

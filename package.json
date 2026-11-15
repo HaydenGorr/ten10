@@ -1,12 +1,12 @@
 {
   "name": "wordle",
   "version": "1.0.0",
-  "description": "Two-player Wordle duel: set a word for your friend, guess theirs.",
+  "description": "Casual two-player games (Wordle duel, Battleships) played by sharing a link.",
   "main": "server.js",
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node test/run.js"
+    "test": "node test/run.js && node test/battleships.js"
   },
   "engines": { "node": ">=18" },
   "dependencies": {

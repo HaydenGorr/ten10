@@ -5,6 +5,7 @@ const express = require('express');
 const compression = require('compression');
 const { WebSocketServer } = require('ws');
 const { WORDS, ANSWERS, isValidWord, isValidTarget, evaluate } = require('./lib/game');
+const battleships = require('./lib/battleships');
 
 const PORT = process.env.PORT || 3000;
 const TEST = process.env.DUELLE_TEST === '1';
@@ -34,7 +35,7 @@ function newCode() {
   for (let tries = 0; tries < 50; tries++) {
     let c = '';
     for (let i = 0; i < 4; i++) c += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-    if (!rooms.has(c)) return c;
+    if (!rooms.has(c) && !battleships.rooms.has(c)) return c; // codes are shared across every game
   }
   return null;
 }
@@ -282,6 +283,7 @@ function handle(ws, ctx, msg) {
     const code = String(msg.room || '').toUpperCase();
     if (!validCode(code) || !validId(msg.id)) return send(ws, { type: 'error', code: 'bad_join' });
     let room = rooms.get(code);
+    if (!room && battleships.rooms.has(code)) return send(ws, { type: 'error', code: 'other_game', game: 'battleships' });
     if (!room) {
       if (rooms.size >= MAX_ROOMS) return send(ws, { type: 'error', code: 'busy' });
       room = makeRoom(code);
@@ -376,19 +378,48 @@ app.post('/api/rooms', (_req, res) => {
   rooms.set(code, room);
   res.json({ code });
 });
+app.post('/api/battleships', (_req, res) => {
+  if (battleships.rooms.size >= MAX_ROOMS) return res.status(503).json({ error: 'busy' });
+  const code = newCode();
+  if (!code) return res.status(503).json({ error: 'busy' });
+  battleships.createRoom(code);
+  res.json({ code });
+});
+// which game a typed code belongs to, so one "join a friend" box works for every game
+app.get('/api/lookup/:code', (req, res) => {
+  const code = String(req.params.code).toUpperCase();
+  res.set('Cache-Control', 'no-store');
+  if (rooms.has(code)) return res.json({ game: 'wordle', path: '/r/' + code });
+  if (battleships.rooms.has(code)) return res.json({ game: 'battleships', path: '/b/' + code });
+  res.status(404).json({ error: 'not_found' });
+});
 app.use(
   express.static(path.join(__dirname, 'public'), {
-    maxAge: '5m',
     setHeaders: (res, file) => {
+      // pages and code revalidate on every load so a deploy shows up straight away; word lists cache for a day
       if (/\.txt$/.test(file)) res.setHeader('Cache-Control', 'public, max-age=86400');
+      else res.setHeader('Cache-Control', 'no-cache');
     },
   })
 );
-app.get(/^\/r\/[A-Za-z0-9]{4,8}\/?$/, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+const sendPage = (file) => (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', file));
+};
+app.get(/^\/r\/[A-Za-z0-9]{4,8}\/?$/, sendPage('index.html'));
+app.get(/^\/b\/[A-Za-z0-9]{4,8}\/?$/, sendPage('battleships/index.html'));
 app.use((_req, res) => res.redirect('/'));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 2048 });
+const bsWss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+battleships.attach(bsWss, (code) => !rooms.has(code));
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://x');
+  const target = pathname === '/ws' ? wss : pathname === '/bs/ws' ? bsWss : null;
+  if (!target) return socket.destroy();
+  target.handleUpgrade(req, socket, head, (ws) => target.emit('connection', ws, req));
+});
 
 wss.on('connection', (ws) => {
   const ctx = { room: null, player: null };
@@ -441,7 +472,7 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 if (require.main === module) {
-  server.listen(PORT, () => console.log(`Wordle listening on :${PORT}`));
+  server.listen(PORT, () => console.log(`Games listening on :${PORT}`));
 }
 
-module.exports = { server, rooms };
+module.exports = { server, rooms, battleships };

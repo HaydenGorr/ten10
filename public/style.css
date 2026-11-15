@@ -200,6 +200,21 @@ button.chip:active { transform: scale(0.95); }
 .logo { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px; --w: clamp(38px, 11vw, 50px); }
 .logo-row { display: flex; gap: 6px; }
 .logo .tile { animation: flip 0.7s ease both; animation-delay: calc(var(--i) * 0.12s + 0.15s); font-size: calc(var(--w) * 0.58); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+/* ---------- home: the game picker ---------- */
+.brand .mark svg { width: 18px; height: 18px; }
+.iconbtn .who { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iconbtn .who:empty { display: none; }
+.hello h1 { margin: 6px 0 2px; font-size: clamp(28px, 8vw, 38px); font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.hello p { margin: 0; color: var(--muted); }
+.game { display: flex; flex-direction: column; gap: 14px; }
+.game-head { display: flex; align-items: center; gap: 14px; }
+.game-head h2 { margin: 0 0 2px; }
+.game-head .art { flex: none; line-height: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.logo.mini { flex: none; --w: 21px; margin: 0; width: 70px; height: 70px; justify-content: center; }
+.logo.mini .logo-row { display: grid; grid-template-columns: repeat(3, var(--w)); gap: 3px; }
+.logo.mini .tile { border-width: 1px; font-size: 12px; border-radius: 5px; box-shadow: none; }
+.game-actions { display: flex; gap: 8px; }
+.game-actions .btn { flex: 1; }
 .join { display: flex; gap: 8px; margin-top: 12px; }
 .input { flex: 1; min-width: 0; height: 46px; padding: 0 14px; border-radius: 14px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--edge); outline: none; font-size: 16px; font-weight: 600; transition: border-color 0.15s, box-shadow 0.15s; }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3); }

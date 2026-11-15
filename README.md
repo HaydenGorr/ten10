@@ -1,4 +1,13 @@
-# Wordle
+# Games
+
+A small casual-games site. Pick a name once and it follows you into every game; start a game, send the link (or the 4-letter code) to a friend, and play.
+
+- **Wordle** (`/r/CODE`): the two-player word duel described below.
+- **Battleships** (`/b/CODE`): hide a fleet of five ships on a 10x10 grid, then take turns firing. Rematches keep the same link and the score. Game logic is in `lib/battleships.js`, the page in `public/battleships/`.
+
+Every game shares one code space, so the "Join a friend" box on the home page works for any game (`GET /api/lookup/CODE` says which). Your name and player id live in browser storage (`duelle.name`, `duelle.id`) and are sent with every game you join. Each game has its own websocket path (`/ws` for Wordle, `/bs/ws` for Battleships) on the same server.
+
+## Wordle
 
 A two-player Wordle duel. Each player secretly picks a word for the other, then you race to crack it.
 

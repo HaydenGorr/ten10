@@ -272,48 +272,74 @@
     if (!parts.length) cx.clearRect(0, 0, innerWidth, innerHeight);
   }
 
-  /* ================= home ================= */
+  /* ================= home (every game on the site) ================= */
+  // the little Battleships board drawn on its card: water, a ship, a miss and a hit
+  const BS_ART = '<svg viewBox="0 0 70 70" width="70" height="70" aria-hidden="true">' +
+    Array.from({ length: 25 }, (_, i) => {
+      const x = (i % 5) * 14, y = Math.floor(i / 5) * 14;
+      const ship = [6, 7, 8].includes(i), hit = i === 7, miss = i === 17;
+      return `<rect x="${x + 1}" y="${y + 1}" width="12" height="12" rx="3" fill="${hit ? '#7a2234' : ship ? '#8aa0b8' : '#1a4a7a'}"/>` +
+        (hit ? `<circle cx="${x + 7}" cy="${y + 7}" r="3.6" fill="#ff5d73"/>` : '') +
+        (miss ? `<circle cx="${x + 7}" cy="${y + 7}" r="1.8" fill="#cfe6fa"/>` : '');
+    }).join('') + '</svg>';
+
   async function home() {
-    document.title = 'Wordle';
+    document.title = 'Games';
     if (!myName) await askName({ first: true });
-    const codeIn = h('input', { class: 'input code-in', placeholder: 'CODE', maxlength: 8, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
-    const go = () => {
+    const codeIn = h('input', { class: 'input code-in', placeholder: 'CODE', maxlength: 8, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': 'Game code' });
+    const joinBtn = h('button', { class: 'btn', style: 'height:46px', onclick: () => go() }, 'Join');
+    // one box for every game: ask the server which game the code belongs to
+    const go = async () => {
       const c = codeIn.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (c.length < 4) return toast('Enter the 4-letter game code');
-      location.href = '/r/' + c;
+      joinBtn.disabled = true;
+      try {
+        const r = await fetch('/api/lookup/' + c);
+        if (r.status === 404) { toast('No game with that code'); joinBtn.disabled = false; return; }
+        const { path } = await r.json();
+        location.href = path;
+      } catch { toast('Could not reach the server, try again'); joinBtn.disabled = false; }
     };
     codeIn.addEventListener('keydown', (e) => e.key === 'Enter' && go());
-    const start = async (btn, bot) => {
+    const start = async (btn, url, prefix) => {
       btn.disabled = true;
       try {
-        const r = await fetch('/api/rooms' + (bot ? '?bot=1' : ''), { method: 'POST' });
+        const r = await fetch(url, { method: 'POST' });
         const { code } = await r.json();
         if (!code) throw 0;
-        location.href = '/r/' + code;
+        location.href = prefix + code;
       } catch { toast('Could not create a game, try again'); btn.disabled = false; }
     };
-    const logoRows = [['wordle', 'cacpac']];
-    const startBtn = h('button', { class: 'btn primary block', style: 'height:54px;font-size:18px', onclick: () => start(startBtn) }, 'Start a game');
-    const botBtn = h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => start(botBtn, true) }, '🤖 Play the bot');
+    const wStart = h('button', { class: 'btn primary', onclick: () => start(wStart, '/api/rooms', '/r/') }, 'Start a game');
+    const wBot = h('button', { class: 'btn', onclick: () => start(wBot, '/api/rooms?bot=1', '/r/') }, '🤖 Play the bot');
+    const bStart = h('button', { class: 'btn primary', onclick: () => start(bStart, '/api/battleships', '/b/') }, 'Start a game');
+    const nameLabel = h('span', { class: 'who' }, myName);
+    const greet = h('h1', {}, `Hi ${myName}`);
     app.replaceChildren(
       h('div', { class: 'shell' },
         h('div', { class: 'top' },
-          h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark' }, 'W')),
+          h('a', { class: 'brand', href: '/', 'aria-label': 'Home' }, h('span', { class: 'mark', html: ICONS.dice }), 'Games'),
           h('div', { class: 'spacer' }),
-          h('button', { class: 'iconbtn', 'aria-label': 'Your name and word list', onclick: () => openProfile() }, icon('user'))),
+          h('button', { class: 'iconbtn', 'aria-label': 'Your name and word list', onclick: () => openProfile((what) => { if (what === 'name') { nameLabel.textContent = myName; greet.textContent = `Hi ${myName}`; } }) }, icon('user'), nameLabel)),
         h('div', { class: 'home' },
-          h('div', { class: 'logo', 'aria-label': 'Wordle' }, logoRows.map(([word, marks], r) =>
-            h('div', { class: 'logo-row' }, [...word].map((l, i) => h('div', { class: 'tile ' + marks[i], style: `--i:${r * 2 + i}` }, l))))),
-          h('div', { class: 'card' },
-            startBtn,
-            botBtn,
-            h('div', { class: 'label-sm', style: 'text-align:center' }, 'or join a friend'),
-            h('div', { class: 'join', style: 'margin:0' }, codeIn, h('button', { class: 'btn', style: 'height:46px', onclick: go }, 'Join'))
-          )
+          h('div', { class: 'hello' }, greet, h('p', {}, 'Pick a game, then send the link to a friend.')),
+          h('section', { class: 'card game' },
+            h('div', { class: 'game-head' },
+              h('div', { class: 'logo mini', 'aria-hidden': 'true' }, h('div', { class: 'logo-row' }, [...'wordle'].map((l, i) => h('div', { class: 'tile ' + 'cacpac'[i], style: `--i:${i}` }, l)))),
+              h('div', {}, h('h2', {}, 'Wordle'), h('p', {}, 'Set a secret word for your friend, then race to crack theirs.'))),
+            h('div', { class: 'game-actions' }, wStart, wBot)),
+          h('section', { class: 'card game' },
+            h('div', { class: 'game-head' },
+              h('div', { class: 'art', html: BS_ART }),
+              h('div', {}, h('h2', {}, 'Battleships'), h('p', {}, 'Hide your fleet, then take turns firing. Sink all five ships to win.'))),
+            h('div', { class: 'game-actions' }, bStart)),
+          h('section', { class: 'card' },
+            h('div', { class: 'label-sm', style: 'margin-top:0' }, 'Join a friend'),
+            h('div', { class: 'join', style: 'margin:0' }, codeIn, joinBtn))
         )
       )
     );
-    loadWords().catch(() => toast('Could not load the word list. Check your connection.'));
+    loadWords().catch(() => {});
   }
 
   /* ================= room ================= */
@@ -400,6 +426,7 @@
           else if (m.code === 'invalid_target') { toast('Plurals can’t be secret words'); shake(); }
           else if (m.code === 'repeat_guess') { toast('You already guessed that'); shake(); }
           else if (m.code === 'busy') toast('Server is busy, try again soon');
+          else if (m.code === 'other_game' && m.game === 'battleships') { full = true; location.replace('/b/' + code); }
         }
       };
       ws.onclose = () => {
