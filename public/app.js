@@ -130,7 +130,7 @@
       let done = false;
       openModal(
         (close) => {
-          const input = h('input', { class: 'input', maxlength: 16, value: myName || '', placeholder: 'hayden, rachel', autocomplete: 'off', spellcheck: 'false' });
+          const input = h('input', { class: 'input', maxlength: 16, value: myName || '', autocomplete: 'off', spellcheck: 'false' });
           const save = () => {
             const v = input.value.replace(/[<>]/g, '').trim().slice(0, 16);
             if (!v) return input.focus();
